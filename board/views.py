@@ -65,3 +65,19 @@ def write(request):
     board.save()
     return HttpResponseRedirect('/board')
 
+
+def delete(request):
+    board = Board.objects.filter(id=request.GET['id'])
+    board.status = 'N'
+    board.save()
+
+    return HttpResponseRedirect('/board')
+
+
+def view(request):
+    board = Board.objects.filter(id=request.GET['no'])
+    data = {
+        'board': board
+    }
+    return render(request, 'board/view.html', data)
+
