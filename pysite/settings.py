@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'guestbook',
     'mathfilters',
     'board',
+    'fileupload',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -131,3 +132,7 @@ STATIC_URL = '/assets/'
 # session
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_SAVE_EVERY_REQUEST = True
+
+# MEDIA
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

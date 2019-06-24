@@ -1,5 +1,4 @@
 {% extends '../base.html' %}
-{% load mathfilters %}
 {% block csslink %}
 	<link href="/assets/css/board.css" rel="stylesheet" type="text/css">
 {% endblock %}
@@ -7,15 +6,27 @@
 	<div id="board" class="board-form">
 		<table class="tbl-ex">
 			<tr>
-				<th colspan="2">글보기</th>
+				<th colspan="4">글보기</th>
 			</tr>
 			<tr>
 				<td class="label">제목</td>
 				<td>{{ board.title }}</td>
 			</tr>
 			<tr>
+				<td class="label">작성자</td>
+				<td>{{ board.user.name }}</td>
+				<td class="label">작성일</td>
+				<td>{{ board.regdate | date:"Y-m-d H:i:s"}}</td>
+			</tr>
+			<tr>
+				<td class="label">첨부파일</td>
+				<td colspan="3">
+					<a href="${PATH }/board/fileDown?downUrl=${fileVo.url }&oriName=${fileVo.oriName }">${fileVo.oriName }<sub>&nbsp; (${fileVo.size }KB)</sub></a>
+				</td>
+			</tr>
+			<tr>
 				<td class="label">내용</td>
-				<td>
+				<td colspan="3">
 					<div class="view-content">
 						{{ board.content | linebreaksbr }}
 					</div>
@@ -24,7 +35,11 @@
 		</table>
 		<div class="bottom">
 			<a href="/board">글목록</a>
-			<a href="/board/update?{{ board.id }}">글수정</a>
+			{% if request.session.authuser.id == board.user_id %}
+				<a href="/board/updateform?id={{ board.id }}">글수정</a>
+			{% else %}
+				<a href="/board/replyform?id={{ board.id }}&groupno={{ board.groupno }}&orderno={{ board.orderno }}&depth={{ board.depth }}">답글달기</a>
+			{% endif %}
 		</div>
 	</div>
 {% endblock %}

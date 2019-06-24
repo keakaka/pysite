@@ -1,54 +1,19 @@
+from django.db.models import F, Max, Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from math import ceil
 from board.models import Board
 # Create your views here.
-
-listsize = 5
-pagesize = 5
+from board.paging import paging
 
 
-def list(request, currentpage=0):
-    try:
-        currentpage = int(request.GET['currentpage'])
-    except Exception as e:
-        currentpage = 1
-    totalcount = len(Board.objects.all())
-    pagecount = ceil(totalcount / listsize)
-    blockcount = pagecount // pagesize
-    currentblock = ceil(currentpage / pagesize)
-    if currentpage > pagecount:
-        currentpage = pagecount
-        currentblock = ceil(currentpage / pagesize)
+def list(request):
+    currentpage = int(request.GET.get('currentpage', 1))
+    keyword = request.POST.get('keyword', '')
+    ordering = ['-groupno', 'orderno']
+    board = Board.objects.filter(Q(title__contains=keyword) | Q(content__contains=keyword)).order_by(*ordering)
 
-    if currentpage < 1:
-        currentpage = 1
-        currentblock = 1
-
-    beginpage = 1 if currentblock == 0 else (currentblock - 1) * pagesize + 1
-    prevpage = (currentblock - 1) * pagesize if (currentblock > 1) else 0
-    nextpage = currentblock * pagesize + 1 if (currentblock < blockcount) else 0
-    endpage = (beginpage -1) + listsize if (nextpage > 0) else pagecount
-
-    start = (currentpage - 1) * pagesize
-    board = Board.objects.all().order_by('-regdate')[start:start + pagesize]
-    forloop = [i for i in range(beginpage, (beginpage + listsize))]
-    forindex = totalcount - (currentpage - 1) * listsize
-
-    data = {
-        'boardlist': board,
-        'totalcount': totalcount,
-        'listsize': listsize,
-        'currentpage': currentpage,
-        'beginpage': beginpage,
-        'endpage': endpage,
-        'prevpage': prevpage,
-        'nextpage': nextpage,
-        'forloop': forloop,
-        'forindex': forindex
-    }
-
-    return render(request, 'board/list.html', data)
+    return render(request, 'board/list.html', paging(board, len(board), currentpage))
 
 
 def writeform(request):
@@ -58,16 +23,39 @@ def writeform(request):
 def write(request):
     board = Board()
 
-    board.title = request.POST['title']
-    board.content = request.POST['content']
-    board.user_id = request.POST['id']
+    try:
+        groupno = int(request.POST['groupno'])
+        orderno = int(request.POST['orderno'])
+        depth = int(request.POST['depth'])
+        Board.objects.filter(groupno=groupno). \
+            filter(orderno__gte=orderno + 1). \
+            update(orderno=F('orderno') + 1)
+
+        board.title = request.POST['title']
+        board.content = request.POST['content']
+        board.user_id = request.POST['user_id']
+        board.groupno = groupno
+        board.orderno = orderno + 1
+        board.depth = depth + 1
+
+    except Exception as e:
+        board.title = request.POST['title']
+        board.content = request.POST['content']
+        board.user_id = request.POST['user_id']
+        board.groupno = groupno_max() + 1
 
     board.save()
     return HttpResponseRedirect('/board')
 
 
+def groupno_max():
+    value = Board.objects.aggregate(max_groupno=Max('groupno'))
+    max_groupno = 0 if value["max_groupno"] is None else value["max_groupno"]
+    return max_groupno
+
+
 def delete(request):
-    board = Board.objects.filter(id=request.GET['id'])
+    board = Board.objects.get(id=request.GET['id'])
     board.status = 'N'
     board.save()
 
@@ -75,9 +63,39 @@ def delete(request):
 
 
 def view(request):
-    board = Board.objects.filter(id=request.GET['no'])
+    board = Board.objects.get(id=request.GET['id'])
+    board.hit = board.hit+1
+    board.save()
     data = {
         'board': board
     }
     return render(request, 'board/view.html', data)
+
+
+def updateform(request):
+    board = Board.objects.get(id=request.GET['id'])
+    data = {
+        'board': board
+    }
+    return render(request, 'board/updateform.html', data)
+
+
+def update(request):
+    id = request.POST['id']
+    board = Board.objects.get(id=id)
+
+    board.content = request.POST['content']
+    board.title = request.POST['title']
+
+    board.save()
+
+    return HttpResponseRedirect(f'/board/view?id={id}')
+
+
+def replyform(request):
+    board = Board.objects.get(id=request.GET['id'])
+    data = {
+        'board': board
+    }
+    return render(request, 'board/replyform.html', data)
 
